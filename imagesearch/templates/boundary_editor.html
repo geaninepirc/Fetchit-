@@ -1,0 +1,51 @@
+{% load static %}
+<html>
+    {% if user.is_authenticated %}
+    {% if user.is_superuser %}
+    <head>
+        <title>Bounding Polys Editor</title>
+        <style>
+            body {
+                margin: 0;
+            }
+        </style>
+        <script>
+            var refImageId = {{ref_image.pk}}
+            var token = '{{token}}'
+            var imagePath = '{{ref_image_url}}'
+            var boundingPoly = {{bounding_poly|safe}}
+            var isEdited = false
+            {% if ref_image.vision_path %}
+            var visionPath = '{{ref_image.vision_path}}'
+            {% else %}
+            var visionPath = null
+            {% endif %}
+        </script>
+    </head>
+    <body style="width: 100vw; height: 100vh;">
+        <div id="loading-mask" style="display: none; position: absolute; z-index: 100; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5);"></div>
+        <div style="height: 39px; border-bottom: 1px solid black; display: flex; align-items: center;">
+            <input type="button" id="back" value="Back" style="margin-left: 8px;" onclick="history.back()" />
+            <input type="button" id="create-edit-bounding" value="Create/Edit Bounding" style="margin-left: 8px;" onclick="change_edit_status()" />
+            <input type="button" id="remove-point" value="Remove Point" style="margin-left: 8px;" onclick="remove_point()" />
+            <input type="button" id="save" value="Save" style="margin-left: 8px;" onclick="save_bounding_poly()" />
+        </div>
+        <script src="/static/js/p5.min.js"></script>
+        <script src="/static/js/sketch.js"></script>
+        <script src="/static/js/boundary_editor_functions.js"></script>
+    </body>
+    {% else %}
+    <body>
+        <script>
+            window.location.href="/manager-admin/"    
+        </script>
+    </body>
+    {% endif %}
+    {% else %}
+    <body>
+        <script>
+            window.location.href="/manager-admin/"    
+        </script>
+    </body>
+    {% endif %}
+</html>

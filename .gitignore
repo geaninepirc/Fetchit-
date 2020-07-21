@@ -1,0 +1,14 @@
+/static
+/media_files
+/coreauth/__pycache__
+/coreauth/migrations/__pycache__
+/product/__pycache__
+/product/migrations/__pycache__
+/imagesearch/__pycache__
+/imagesearch/migrations/__pycache__
+/productsearchwithcapturedimage/__pycache__
+/*.sqlite3
+/key.json
+/machine_learning_data/*
+/automlsearch/__pycache__
+/automlsearch/migrations/__pycache__
