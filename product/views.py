@@ -6,8 +6,9 @@ from rest_framework.views import APIView
 
 from .models import ProductCategory, Option, OptionGroup, Product, ProductMedia, ProductOption
 from .serializers import ProductCategorySerializer, OptionSerializer, OptionGroupSerializer, ProductSimpleSerializer, ProductDetailSerializer
-from automlsearch import utils
-from automlsearch.models import TrainedModel
+# from automlsearch import utils
+# from automlsearch.models import TrainedModel
+from automlsearch.views import SearchProduct
 
 from datetime import datetime, timezone
 import os
@@ -116,21 +117,8 @@ class searchProductWithImageFile(APIView):
     permission_classes = (permissions.AllowAny, )
 
     def post(self, request, *args, **kwargs):
-        search_image = request.FILES['search_image']
-        private_storage = FileSystemStorage(location=os.path.join(BASE_DIR, 'machine_learning_data/search'))
-        search_image_name = 'search_{}_{}'.format(int(datetime.now().timestamp()), search_image.name)
-        private_storage.save(search_image_name, search_image)
-        search_image_path = os.path.join(BASE_DIR, 'machine_learning_data/search', search_image_name)
-
-        latest_trained_model = TrainedModel.objects.order_by('-reg_date')[0]
-        model_file_path = os.path.join(BASE_DIR, latest_trained_model.model_path)
-        result = utils.process_one_image(model_file_path, search_image_path)
-        
-        adjusted_result = [{'id': idx, 'similarity': value} for idx, value in enumerate(result) if 1 == 1]
-
-        return_result = utils.create_readable_product_list(adjusted_result, os.path.join(BASE_DIR, latest_trained_model.class_indices_path))
-
-        return Response(return_result, status=status.HTTP_200_OK)
+        result = SearchProduct.post(self, request)
+        return result
 
     
 

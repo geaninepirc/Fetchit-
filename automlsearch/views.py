@@ -12,7 +12,9 @@ from . import utils
 
 from datetime import datetime, timezone
 import os
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SEARCH_ROOT = 'machine_learning_data/search'
 
 # Create your views here.
 class TrainedModelView(APIView):
@@ -78,7 +80,7 @@ class TrainedModelView(APIView):
 
         serializer = TrainedModelSerializer(current_model)
 
-        return Response({'success': True}, status=status.HTTP_202_ACCEPTED)
+        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
 class ProductInTrainedModelView(APIView):
     permission_classes = (permissions.IsAdminUser, )
@@ -128,20 +130,36 @@ class RefImageView(APIView):
 
         return Response({'success': True}, status=status.HTTP_201_CREATED)
 
+class CreateTrainModelView(APIView):
+    permission_classes = (permissions.IsAdminUser, )
+
+    def post(self, request, *args, **kwargs):
+        image_width = request.data['image_width']
+        image_height = request.data['image_height']
+        batch_size = request.data['batch_size']
+        model = utils.create_initial_model(ProductInTrainedModel.objects.count(), image_width, image_height)
+        train_path = os.path.join(BASE_DIR, 'machine_learning_data', request.data['data_folder'], request.data['train_folder'])
+        val_path = os.path.join(BASE_DIR, 'machine_learning_data', request.data['data_folder'], request.data['val_folder'])
+        save_root = os.path.join(BASE_DIR, 'machine_learning_data', 'train')
+        utils.train_model(model, batch_size, image_width, image_height, train_path, val_path, save_root )
+
+        return Response({'success': True}, status=status.HTTP_200_OK)
+
+
 class SearchProduct(APIView):
     permission_classes = (permissions.IsAdminUser, )
 
     def post(self, request, *args, **kwargs):
         search_image = request.FILES['search_image']
-        private_storage = FileSystemStorage(location=os.path.join(BASE_DIR, 'machine_learning_data/search'))
+        private_storage = FileSystemStorage(location=os.path.join(BASE_DIR, SEARCH_ROOT))
         search_image_name = 'search_{}_{}'.format(int(datetime.now().timestamp()), search_image.name)
         private_storage.save(search_image_name, search_image)
-        search_image_path = os.path.join(BASE_DIR, 'machine_learning_data/search', search_image_name)
+        search_image_path = os.path.join(BASE_DIR, SEARCH_ROOT, search_image_name)
 
         latest_trained_model = TrainedModel.objects.order_by('-reg_date')[0]
         model_file_path = os.path.join(BASE_DIR, latest_trained_model.model_path)
-        result = utils.process_one_image(model_file_path, search_image_path)
-
+        image_dimension = latest_trained_model.image_size.split(", ")
+        result = utils.search_class(model_file_path, search_image_path, int(image_dimension[0]), int(image_dimension[1]))
 
         adjusted_result = [{'id': idx, 'similarity': value} for idx, value in enumerate(result) if 1 == 1]
 

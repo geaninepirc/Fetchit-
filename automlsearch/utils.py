@@ -1,138 +1,118 @@
-import cv2
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D
-from keras.applications.densenet import preprocess_input
+from keras.models import Sequential, load_model
+from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
+from keras.callbacks import ModelCheckpoint
+from keras.layers import Conv2D, MaxPooling2D, Activation, Dropout, Flatten, Dense
+
+import cv2
 import numpy as np
-
-import os
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 import json
+import os
+from datetime import datetime
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from .models import ProductInTrainedModel
 
-# pre-necessaries
-class ModelClassifier():
-    def __init__(self, model_path):
-        self.model = tf.keras.models.load_model(model_path)
+def create_initial_model(num_classes, IMG_WIDTH, IMG_HEIGHT):
+    model = Sequential()
+    model.add(Conv2D(64, (3, 3), input_shape=(IMG_WIDTH, IMG_HEIGHT, 3)))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    def predict(self, image):
-        pred = self.model.predict(image, steps=1)
-        # index = np.argmax(pred)
-        return pred
+    model.add(Conv2D(64, (3, 3)))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
 
-def make_model(num_classes):
-    IMG_SHAPE = (224,224,3)
-    base_model = tf.keras.applications.DenseNet121(input_shape=IMG_SHAPE, include_top=False, weights='imagenet')
-    base_model.trainable = True
-    # Let's take a look to see how many layers are in the base model
-    print("Number of layers in the base model: ", len(base_model.layers))
-    
-    # Fine tune from this layer onwards
-    fine_tune_at = 280
-    
-    # Freeze all the layers before the `fine_tune_at` layer
-    for layer in base_model.layers[:fine_tune_at]:
-      layer.trainable =  False
-    
-    model = tf.keras.Sequential([
-      base_model,
-      keras.layers.GlobalAveragePooling2D(),
-      Dropout(0.5),
-      keras.layers.Dense(num_classes, activation='softmax')
-    ])
-    
-    model.compile(loss='categorical_crossentropy',
-                  optimizer = tf.keras.optimizers.RMSprop(lr=1e-5),
-                  #optimizer = tf.keras.optimizers.Adam(lr=5e-5),
-                  metrics=['acc'])
-    
+    model.add(Conv2D(64, (3, 3)))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    model.add(Conv2D(64, (3, 3)))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    model.add(Conv2D(64, (3, 3)))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    model.add(Flatten())  # this converts our 3D feature maps to 1D feature vectors
+    model.add(Dense(64))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(num_classes, ))
+    model.add(Activation('sigmoid'))
+
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+
     return model
 
-
 # train_model
-def train_model(num_classes, batch_size, train_path, val_path, model_root_path):
-    # data generators
-    train_datagen = ImageDataGenerator(
+def train_model(model, batch_size, IMG_WIDTH, IMG_HEIGHT, train_path, val_path, save_root):
+    train_data_generator = ImageDataGenerator(
+        rotation_range=180,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
         rescale=1./255,
         shear_range=0.2,
         zoom_range=0.2,
-        width_shift_range=0.2,
-        height_shift_range=0.2,        
-        preprocessing_function=preprocess_input,
-        validation_split=0.0
-    )
+        horizontal_flip=True,
+        preprocessing_function=keras.applications.densenet.preprocess_input,
+        fill_mode='nearest',)
 
-    val_datagen = ImageDataGenerator(
+    test_data_generator = ImageDataGenerator(
         rescale=1./255,
-        preprocessing_function=preprocess_input,
-        validation_split = 0.0
+        preprocessing_function=keras.applications.densenet.preprocess_input
     )
 
-    train_generator = train_datagen.flow_from_directory(
-        train_path,
-        target_size=(224, 224),
-        batch_size=batch_size,
-        class_mode='categorical',    
-        subset='training',
-        seed=0
-    )
-
-    validation_generator = val_datagen.flow_from_directory(
-        val_path,
-        target_size=(224, 224),
-        batch_size=batch_size,
-        class_mode='categorical',
-        subset = 'training',
-        seed=0
-    )
+    train_generator = train_data_generator.flow_from_directory(
+        train_path, 
+        target_size=(IMG_WIDTH, IMG_HEIGHT), 
+        batch_size=batch_size, 
+        class_mode='categorical',)
 
     class_indices = train_generator.class_indices
 
     print("-- Writing Class Indices --")
-    with open(os.path.join(BASE_DIR, model_root_path, 'class_indices.json'), 'w') as outfile:
+    with open(os.path.join(BASE_DIR, save_root, 'class_indices_{}.json'.format(int(datetime.now().timestamp()))), 'w') as outfile:
         json.dump(class_indices, outfile)
     print("------- End -------")
 
-    model = make_model(num_classes)
-    model.summary()
+    test_generator = test_data_generator.flow_from_directory(
+        val_path,
+        target_size=(IMG_WIDTH, IMG_HEIGHT), 
+        batch_size=batch_size, 
+        class_mode='categorical',
+    )
 
-    filepath="InceptionV3-{epoch:02d}-{val_acc:.2f}.hdf5"
-    checkpoint = ModelCheckpoint(os.path.join(BASE_DIR, model_root_path, filepath), monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    filepath = os.path.join(BASE_DIR, save_root, "CustomModel-{epoch:02d}-{acc:.2f}-{val_acc:.2f}.h5")
+    checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
     callbacks_list = [checkpoint]
 
-    epochs = 100
-    steps_per_epoch = train_generator.n // batch_size
-    validation_steps = validation_generator.n // batch_size
-
-    history = model.fit_generator(train_generator, 
-                                steps_per_epoch = steps_per_epoch,
-                                epochs=epochs, 
-                                workers=4,
-                                validation_data=validation_generator, 
-                                validation_steps=validation_steps,
-                                callbacks=callbacks_list)
+    history = model.fit_generator(
+        train_generator,
+        steps_per_epoch = train_generator.n // batch_size,
+        epochs=100,
+        validation_data=test_generator,
+        validation_steps=test_generator.n // batch_size,
+        callbacks=callbacks_list
+    )
 
     return history
 
 # process one image
-def process_one_image(model_path, filename):
-    classifier = ModelClassifier(model_path)
-    print('model loaded')
-    
+def search_class(model_path, image_path, IMG_WIDTH, IMG_HEIGHT):
+    model = load_model(model_path)
+        
     # load image and convert to float image
-    img = cv2.imread(filename, cv2.IMREAD_UNCHANGED) / 255.0
+    img_bgr = cv2.imread(image_path, cv2.IMREAD_UNCHANGED) 
+    img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB) 
+    img = cv2.resize(img, (IMG_WIDTH, IMG_HEIGHT))
+    img = keras.applications.densenet.preprocess_input(img) / 255.0
+    # img = (img * 2 - 1) / 255.0
+    img_expanded = np.expand_dims(img, 0)  # Create batch axis
+    pred = model.predict(img_expanded, steps=1)
 
-    # preprocessing for InceptionV3
-    img = cv2.resize(img, (224,224))
-    img = (img * 2 - 1) / 255.0
-    img_expanded = tf.expand_dims(img, 0)  # Create batch axis
-
-    # predict        
-    pred = classifier.predict(img_expanded)    
     return pred[0]
     
 def create_readable_product_list(result_list, json_file_path):
