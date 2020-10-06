@@ -175,3 +175,5 @@ GOOGLE_CLOUD_API_KEY = 'AIzaSyA4_AwBo7g8saQ_l9oNGlQ40JhUSL66lfo'
 GOOGLE_CLOUD_PROJECT_ID = 'cloud-vision-test-282616'
 GOOGLE_CLOUD_LOCATION_ID = 'europe-west1'
 GOOGLE_STORAGE_BUCKET_NAME = 'product-search-images-bucket'
+
+ML_MODEL = None

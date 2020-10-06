@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.core.files.storage import FileSystemStorage
+from django.conf import settings
 
 from rest_framework import permissions, status, parsers
 from rest_framework.response import Response
@@ -49,6 +50,8 @@ class TrainedModelView(APIView):
         new_model.train_folder = request.data['train_folder']
         new_model.val_folder = request.data['val_folder']
         new_model.save()
+
+        utils.load_search_model(new_model.model_path)
 
         serializer = TrainedModelSerializer(new_model)
 
@@ -150,16 +153,21 @@ class SearchProduct(APIView):
     permission_classes = (permissions.IsAdminUser, )
 
     def post(self, request, *args, **kwargs):
+        # print(settings.ML_MODEL)
         search_image = request.FILES['search_image']
         private_storage = FileSystemStorage(location=os.path.join(BASE_DIR, SEARCH_ROOT))
         search_image_name = 'search_{}_{}'.format(int(datetime.now().timestamp()), search_image.name)
         private_storage.save(search_image_name, search_image)
         search_image_path = os.path.join(BASE_DIR, SEARCH_ROOT, search_image_name)
-
+        
         latest_trained_model = TrainedModel.objects.order_by('-reg_date')[0]
-        model_file_path = os.path.join(BASE_DIR, latest_trained_model.model_path)
+        
+        if settings.ML_MODEL == None:
+            model_file_path = os.path.join(BASE_DIR, latest_trained_model.model_path)
+            utils.load_search_model(model_file_path)
         image_dimension = latest_trained_model.image_size.split(", ")
-        result = utils.search_class(model_file_path, search_image_path, int(image_dimension[0]), int(image_dimension[1]))
+
+        result = utils.search_class(search_image_path, int(image_dimension[0]), int(image_dimension[1]))
 
         adjusted_result = [{'id': idx, 'similarity': value} for idx, value in enumerate(result) if 1 == 1]
 

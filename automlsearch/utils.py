@@ -1,3 +1,5 @@
+from django.conf import settings
+
 import tensorflow as tf
 from tensorflow import keras
 from keras.models import Sequential, load_model
@@ -101,8 +103,13 @@ def train_model(model, batch_size, IMG_WIDTH, IMG_HEIGHT, train_path, val_path, 
     return history
 
 # process one image
-def search_class(model_path, image_path, IMG_WIDTH, IMG_HEIGHT):
-    model = load_model(model_path)
+
+def load_search_model(model_path):
+    settings.ML_MODEL = load_model(model_path)
+    print("loaded ...")
+
+def search_class(image_path, IMG_WIDTH, IMG_HEIGHT):
+    # model = load_model(model_path)
         
     # load image and convert to float image
     img_bgr = cv2.imread(image_path, cv2.IMREAD_UNCHANGED) 
@@ -111,7 +118,7 @@ def search_class(model_path, image_path, IMG_WIDTH, IMG_HEIGHT):
     img = keras.applications.densenet.preprocess_input(img) / 255.0
     # img = (img * 2 - 1) / 255.0
     img_expanded = np.expand_dims(img, 0)  # Create batch axis
-    pred = model.predict(img_expanded, steps=1)
+    pred = settings.ML_MODEL.predict(img_expanded, steps=1)
 
     return pred[0]
     
