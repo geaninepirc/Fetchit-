@@ -105,8 +105,10 @@ def train_model(model, batch_size, IMG_WIDTH, IMG_HEIGHT, train_path, val_path, 
 # process one image
 
 def load_search_model(model_path):
+    print("-- Loading... Search Model --")
     settings.ML_MODEL = load_model(model_path)
-    print("loaded ...")
+    print(settings.ML_MODEL)
+    print("-- Loaded Search Model --")
 
 def search_class(image_path, IMG_WIDTH, IMG_HEIGHT):
     # model = load_model(model_path)

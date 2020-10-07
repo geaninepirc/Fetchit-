@@ -51,7 +51,8 @@ class TrainedModelView(APIView):
         new_model.val_folder = request.data['val_folder']
         new_model.save()
 
-        utils.load_search_model(new_model.model_path)
+        model_file_path = os.path.join(BASE_DIR, new_model.model_path)
+        utils.load_search_model(model_file_path)
 
         serializer = TrainedModelSerializer(new_model)
 
