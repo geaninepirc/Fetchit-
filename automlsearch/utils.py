@@ -123,21 +123,43 @@ def search_class(image_path, IMG_WIDTH, IMG_HEIGHT):
     pred = settings.ML_MODEL.predict(img_expanded, steps=1)
 
     return pred[0]
+
+def make_product_dict(request, product_list, result_dict):
+    product_uid = [prdct[0] for prdct in product_list if prdct[1] == result_dict['id']][0]
+    product_obj = ProductInTrainedModel.objects.get(product_uid=product_uid)
+    if product_obj.product.thumbnail:
+        return {
+            'class_id': result_dict['id'],
+            'product_id': product_obj.product.pk,
+            'product_name': product_obj.product.name,
+            'thumbnail': request.build_absolute_uri(product_obj.product.thumbnail.url),
+            'short_description': product_obj.product.short_description,
+            'similarity': result_dict['similarity']
+        }
+    else:
+        return {
+            'class_id': result_dict['id'],
+            'product_id': product_obj.product.pk,
+            'product_name': product_obj.product.name,
+            'thumbnail': None,
+            'short_description': product_obj.product.short_description,
+            'similarity': result_dict['similarity']
+        }
     
-def create_readable_product_list(result_list, json_file_path):
+def create_readable_product_list(request, result_list, json_file_path):
     with open(json_file_path) as json_file:
         product_dict = json.load(json_file)
         product_list = list(product_dict.items())
-        new_result = []
-        for res in result_list:
-            product_uid = [prdct[0] for prdct in product_list if prdct[1] == res['id']][0]
-            product_obj = ProductInTrainedModel.objects.get(product_uid=product_uid)
-            new_result.append({
-                'class_id': res['id'],
-                'product_id': product_obj.product.pk,
-                'product_name': product_obj.product.name,
-                'similarity': res['similarity']
-            })
+        new_result = [make_product_dict(request, product_list, res) for res in result_list]
+        # for res in result_list:
+        #     product_uid = [prdct[0] for prdct in product_list if prdct[1] == res['id']][0]
+        #     product_obj = ProductInTrainedModel.objects.get(product_uid=product_uid)
+        #     new_result.append({
+        #         'class_id': res['id'],
+        #         'product_id': product_obj.product.pk,
+        #         'product_name': product_obj.product.name,
+        #         'similarity': res['similarity']
+        #     })
 
         return sorted(new_result, key=lambda x: x['similarity'], reverse=True)
         

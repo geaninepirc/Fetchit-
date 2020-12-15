@@ -172,6 +172,6 @@ class SearchProduct(APIView):
 
         adjusted_result = [{'id': idx, 'similarity': value} for idx, value in enumerate(result) if 1 == 1]
 
-        return_result = utils.create_readable_product_list(adjusted_result, os.path.join(BASE_DIR, latest_trained_model.class_indices_path))
+        return_result = utils.create_readable_product_list(request, adjusted_result, os.path.join(BASE_DIR, latest_trained_model.class_indices_path))
 
         return Response(return_result, status=status.HTTP_200_OK)
